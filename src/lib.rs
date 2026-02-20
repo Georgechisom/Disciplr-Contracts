@@ -14,6 +14,7 @@ pub enum VaultStatus {
 }
 
 #[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProductivityVault {
     pub creator: Address,
     pub amount: i128,
@@ -24,6 +25,12 @@ pub struct ProductivityVault {
     pub success_destination: Address,
     pub failure_destination: Address,
     pub status: VaultStatus,
+}
+
+#[contracttype]
+pub enum DataKey {
+    NextVaultId,
+    Vault(u32),
 }
 
 #[contract]
@@ -57,7 +64,17 @@ impl DisciplrVault {
             failure_destination,
             status: VaultStatus::Active,
         };
-        let vault_id = 0u32; // placeholder; real impl would allocate id and persist
+        let vault_id: u32 = env
+            .storage()
+            .instance()
+            .get(&DataKey::NextVaultId)
+            .unwrap_or(0u32);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Vault(vault_id), &vault);
+        env.storage()
+            .instance()
+            .set(&DataKey::NextVaultId, &(vault_id + 1));
         env.events().publish(
             (Symbol::new(&env, "vault_created"), vault_id),
             vault,
@@ -95,8 +112,57 @@ impl DisciplrVault {
     }
 
     /// Return current vault state for a given vault id.
-    /// Placeholder: returns None; full impl would read from storage.
-    pub fn get_vault_state(_env: Env, _vault_id: u32) -> Option<ProductivityVault> {
-        None
+    pub fn get_vault_state(env: Env, vault_id: u32) -> Option<ProductivityVault> {
+        env.storage().persistent().get(&DataKey::Vault(vault_id))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use soroban_sdk::testutils::Address as _;
+
+    #[test]
+    fn get_vault_state_returns_some_with_matching_fields() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let contract_id = env.register_contract(None, DisciplrVault);
+        let client = DisciplrVaultClient::new(&env, &contract_id);
+
+        let creator = Address::generate(&env);
+        let verifier = Address::generate(&env);
+        let success_destination = Address::generate(&env);
+        let failure_destination = Address::generate(&env);
+
+        let amount = 1_000_i128;
+        let start_timestamp = 1_700_000_000_u64;
+        let end_timestamp = 1_700_086_400_u64;
+        let milestone_hash = BytesN::from_array(&env, &[7u8; 32]);
+
+        let vault_id = client.create_vault(
+            &creator,
+            &amount,
+            &start_timestamp,
+            &end_timestamp,
+            &milestone_hash,
+            &Some(verifier.clone()),
+            &success_destination,
+            &failure_destination,
+        );
+
+        let vault_state = client.get_vault_state(&vault_id);
+        assert!(vault_state.is_some());
+
+        let vault = vault_state.unwrap();
+        assert_eq!(vault.creator, creator);
+        assert_eq!(vault.amount, amount);
+        assert_eq!(vault.start_timestamp, start_timestamp);
+        assert_eq!(vault.end_timestamp, end_timestamp);
+        assert_eq!(vault.milestone_hash, milestone_hash);
+        assert_eq!(vault.verifier, Some(verifier));
+        assert_eq!(vault.success_destination, success_destination);
+        assert_eq!(vault.failure_destination, failure_destination);
+        assert_eq!(vault.status, VaultStatus::Active);
     }
 }
