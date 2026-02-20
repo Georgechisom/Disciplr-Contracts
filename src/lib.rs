@@ -123,12 +123,14 @@ impl DisciplrVault {
     pub fn get_vault_state(env: Env, vault_id: u32) -> Option<ProductivityVault> {
         env.storage().instance().get(&vault_id)
     }
-    
-    // Test helper methods (not exposed in production)
-    #[cfg(test)]
-    pub fn set_vault_state_test(env: Env, vault_id: u32, vault: ProductivityVault) {
+}
+
+// Test helper function outside of contractimpl
+#[cfg(test)]
+fn set_vault_in_storage(env: &Env, contract_id: &Address, vault_id: u32, vault: ProductivityVault) {
+    env.as_contract(contract_id, || {
         env.storage().instance().set(&vault_id, &vault);
-    }
+    });
 }
 
 #[cfg(test)]
@@ -169,10 +171,8 @@ mod tests {
         // Create a vault with Completed status
         let (vault_id, creator, vault) = create_test_vault(&env, VaultStatus::Completed);
         
-        // Store the vault in contract storage using as_contract
-        env.as_contract(&contract_id, || {
-            DisciplrVault::set_vault_state_test(env.clone(), vault_id, vault);
-        });
+        // Store the vault in contract storage
+        set_vault_in_storage(&env, &contract_id, vault_id, vault);
         
         // Mock auth for creator
         env.mock_all_auths();
@@ -191,10 +191,8 @@ mod tests {
         // Create a vault with Failed status
         let (vault_id, creator, vault) = create_test_vault(&env, VaultStatus::Failed);
         
-        // Store the vault in contract storage using as_contract
-        env.as_contract(&contract_id, || {
-            DisciplrVault::set_vault_state_test(env.clone(), vault_id, vault);
-        });
+        // Store the vault in contract storage
+        set_vault_in_storage(&env, &contract_id, vault_id, vault);
         
         // Mock auth for creator
         env.mock_all_auths();
@@ -212,10 +210,8 @@ mod tests {
         // Create a vault with Active status
         let (vault_id, creator, vault) = create_test_vault(&env, VaultStatus::Active);
         
-        // Store the vault in contract storage using as_contract
-        env.as_contract(&contract_id, || {
-            DisciplrVault::set_vault_state_test(env.clone(), vault_id, vault);
-        });
+        // Store the vault in contract storage
+        set_vault_in_storage(&env, &contract_id, vault_id, vault);
         
         // Mock auth for creator
         env.mock_all_auths();
@@ -235,10 +231,8 @@ mod tests {
         // Create a vault with Cancelled status
         let (vault_id, _creator, vault) = create_test_vault(&env, VaultStatus::Cancelled);
         
-        // Store the vault in contract storage using as_contract
-        env.as_contract(&contract_id, || {
-            DisciplrVault::set_vault_state_test(env.clone(), vault_id, vault.clone());
-        });
+        // Store the vault in contract storage
+        set_vault_in_storage(&env, &contract_id, vault_id, vault.clone());
         
         // Mock auth for creator
         env.mock_all_auths();
@@ -257,10 +251,8 @@ mod tests {
         // Create a vault with Active status
         let (vault_id, _creator, vault) = create_test_vault(&env, VaultStatus::Active);
         
-        // Store the vault in contract storage using as_contract
-        env.as_contract(&contract_id, || {
-            DisciplrVault::set_vault_state_test(env.clone(), vault_id, vault);
-        });
+        // Store the vault in contract storage
+        set_vault_in_storage(&env, &contract_id, vault_id, vault);
         
         // Try to cancel with a different address
         let non_creator = Address::generate(&env);
