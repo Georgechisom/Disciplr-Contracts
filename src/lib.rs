@@ -199,7 +199,13 @@ impl DisciplrVault {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use super::*;
+    use soroban_sdk::{
+        testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation, Events, Ledger},
+        Address, BytesN, Env, IntoVal, Symbol, TryIntoVal,
+    };
 
     /// Test that create_vault fails when creator auth is not provided
     /// This is the primary security test: require_auth() must enforce authorization
@@ -336,106 +342,6 @@ mod tests {
             failure_addr,
         );
     }
-}
-#[cfg(test)]
-mod test {
-    use super::*;
-    use soroban_sdk::testutils::{Address as _, Ledger};
-
-    #[test]
-    fn test_validate_milestone_rejects_after_end() {
-        let env = Env::default();
-        let contract_id = env.register(DisciplrVault, ());
-        let client = DisciplrVaultClient::new(&env, &contract_id);
-
-        let creator = Address::generate(&env);
-        let verifier = Address::generate(&env);
-        let success_dest = Address::generate(&env);
-        let failure_dest = Address::generate(&env);
-
-        let start_time = 1000;
-        let end_time = 2000;
-        
-        env.ledger().set_timestamp(start_time);
-
-        // Sign for create_vault
-        env.mock_all_auths();
-
-        let vault_id = client.create_vault(
-            &creator,
-            &1000,
-            &start_time,
-            &end_time,
-            &BytesN::from_array(&env, &[0u8; 32]),
-            &Some(verifier.clone()),
-            &success_dest,
-            &failure_dest,
-        );
-
-        // Advance ledger to exactly end_timestamp
-        env.ledger().set_timestamp(end_time);
-
-        // Try to validate milestone - should fail with MilestoneExpired (error code 5)
-        // Try to validate milestone - should fail with MilestoneExpired
-        let _result = client.try_validate_milestone(&vault_id);
-        assert!(_result.is_err());
-
-        // Advance ledger past end_timestamp
-        env.ledger().set_timestamp(end_time + 1);
-
-        // Try to validate milestone - should also fail
-        let _result = client.try_validate_milestone(&vault_id);
-        assert!(_result.is_err());
-    }
-
-    #[test]
-    fn test_validate_milestone_succeeds_before_end() {
-        let env = Env::default();
-        let contract_id = env.register(DisciplrVault, ());
-        let client = DisciplrVaultClient::new(&env, &contract_id);
-
-        let creator = Address::generate(&env);
-        let verifier = Address::generate(&env);
-        let success_dest = Address::generate(&env);
-        let failure_dest = Address::generate(&env);
-
-        let start_time = 1000;
-        let end_time = 2000;
-        
-        env.ledger().set_timestamp(start_time);
-        env.mock_all_auths();
-
-        let vault_id = client.create_vault(
-            &creator,
-            &1000,
-            &start_time,
-            &end_time,
-            &BytesN::from_array(&env, &[0u8; 32]),
-            &Some(verifier.clone()),
-            &success_dest,
-            &failure_dest,
-        );
-
-        // Set time to just before end
-        env.ledger().set_timestamp(end_time - 1);
-
-        let success = client.validate_milestone(&vault_id);
-        assert!(success);
-
-        let vault = client.get_vault_state(&vault_id).unwrap();
-        assert_eq!(vault.status, VaultStatus::Completed);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    extern crate std; // no_std crate — explicitly link std for the test harness
-
-    use super::*;
-    use soroban_sdk::{
-        testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation, Events},
-        Address, BytesN, Env, IntoVal, Symbol, TryIntoVal,
-    };
 
     /// Helper: build a default set of valid vault parameters.
     fn make_vault_args(
@@ -543,6 +449,89 @@ mod tests {
 
         // end == start — should panic once validation is added
         client.create_vault(&creator, &amount, &start, &start, &hash, &verifier, &s_dest, &f_dest);
+    }
+
+    #[test]
+    fn test_validate_milestone_rejects_after_end() {
+        let env = Env::default();
+        let contract_id = env.register(DisciplrVault, ());
+        let client = DisciplrVaultClient::new(&env, &contract_id);
+
+        let creator = Address::generate(&env);
+        let verifier = Address::generate(&env);
+        let success_dest = Address::generate(&env);
+        let failure_dest = Address::generate(&env);
+
+        let start_time = 1000;
+        let end_time = 2000;
+        
+        env.ledger().set_timestamp(start_time);
+
+        // Sign for create_vault
+        env.mock_all_auths();
+
+        let vault_id = client.create_vault(
+            &creator,
+            &1000,
+            &start_time,
+            &end_time,
+            &BytesN::from_array(&env, &[0u8; 32]),
+            &Some(verifier.clone()),
+            &success_dest,
+            &failure_dest,
+        );
+
+        // Advance ledger to exactly end_timestamp
+        env.ledger().set_timestamp(end_time);
+
+        // Try to validate milestone - should fail with MilestoneExpired (error code 5)
+        let _result = client.try_validate_milestone(&vault_id);
+        assert!(_result.is_err());
+
+        // Advance ledger past end_timestamp
+        env.ledger().set_timestamp(end_time + 1);
+
+        // Try to validate milestone - should also fail
+        let _result = client.try_validate_milestone(&vault_id);
+        assert!(_result.is_err());
+    }
+
+    #[test]
+    fn test_validate_milestone_succeeds_before_end() {
+        let env = Env::default();
+        let contract_id = env.register(DisciplrVault, ());
+        let client = DisciplrVaultClient::new(&env, &contract_id);
+
+        let creator = Address::generate(&env);
+        let verifier = Address::generate(&env);
+        let success_dest = Address::generate(&env);
+        let failure_dest = Address::generate(&env);
+
+        let start_time = 1000;
+        let end_time = 2000;
+        
+        env.ledger().set_timestamp(start_time);
+        env.mock_all_auths();
+
+        let vault_id = client.create_vault(
+            &creator,
+            &1000,
+            &start_time,
+            &end_time,
+            &BytesN::from_array(&env, &[0u8; 32]),
+            &Some(verifier.clone()),
+            &success_dest,
+            &failure_dest,
+        );
+
+        // Set time to just before end
+        env.ledger().set_timestamp(end_time - 1);
+
+        let success = client.validate_milestone(&vault_id);
+        assert!(success);
+
+        let vault = client.get_vault_state(&vault_id).unwrap();
+        assert_eq!(vault.status, VaultStatus::Completed);
     }
 }
 
