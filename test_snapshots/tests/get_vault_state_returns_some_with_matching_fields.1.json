@@ -1,6 +1,6 @@
 {
   "generators": {
-    "address": 4,
+    "address": 5,
     "nonce": 0
   },
   "auth": [
@@ -24,15 +24,14 @@
                   }
                 },
                 {
-                  "u64": 1000
+                  "u64": 1700000000
                 },
                 {
-                  "u64": 2000
+                  "u64": 1700086400
                 },
                 {
-                  "bytes": "abababababababababababababababababababababababababababababababab"
+                  "bytes": "0707070707070707070707070707070707070707070707070707070707070707"
                 },
-                "void",
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
                 },
@@ -49,13 +48,12 @@
         }
       ]
     ],
-    [],
     []
   ],
   "ledger": {
     "protocol_version": 22,
     "sequence_number": 0,
-    "timestamp": 2001,
+    "timestamp": 0,
     "network_id": "0000000000000000000000000000000000000000000000000000000000000000",
     "base_reserve": 0,
     "min_persistent_entry_ttl": 4096,
@@ -123,7 +121,7 @@
                         "symbol": "end_timestamp"
                       },
                       "val": {
-                        "u64": 2000
+                        "u64": 1700086400
                       }
                     },
                     {
@@ -139,7 +137,7 @@
                         "symbol": "milestone_hash"
                       },
                       "val": {
-                        "bytes": "0000000000000000000000000000000000000000000000000000000000000000"
+                        "bytes": "0707070707070707070707070707070707070707070707070707070707070707"
                       }
                     },
                     {
@@ -147,7 +145,7 @@
                         "symbol": "start_timestamp"
                       },
                       "val": {
-                        "u64": 1000
+                        "u64": 1700000000
                       }
                     },
                     {
