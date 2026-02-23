@@ -1,7 +1,6 @@
 #![no_std]
 #![allow(clippy::too_many_arguments)]
 #[allow(unused_imports)]
-
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, Address, BytesN, Env, Symbol, TryIntoVal,
 };
@@ -753,11 +752,6 @@ mod tests_setup {
     /// Build a fresh Soroban test environment, register the contract, and return
     /// the typed client together with pre-generated mock actor addresses.
 
-    /// Return a deterministic 32-byte milestone hash for testing.
-    fn milestone_hash(env: &Env) -> BytesN<32> {
-        BytesN::from_array(env, &[0xabu8; 32])
-    }
-
     // -----------------------------------------------------------------------
     // Tests
     // -----------------------------------------------------------------------
@@ -778,28 +772,6 @@ mod tests_setup {
             &actors.success_dest,
             &actors.failure_dest,
         );
-    }
-    #[should_panic(
-        expected = "create_vault: start_timestamp must be strictly less than end_timestamp"
-    )]
-    fn create_vault_rejects_start_greater_than_end() {
-        let (env, client, actors) = setup();
-        let start = 1000;
-        let end = 2000;
-        env.ledger().set_timestamp(start);
-        let id = client.create_vault(
-            &actors.creator,
-            &1000,
-            &start,
-            &end,
-            &milestone_hash_helper(&env),
-            &None,
-            &actors.success_dest,
-            &actors.failure_dest,
-        );
-        env.ledger().set_timestamp(end);
-        let _result = client.try_validate_milestone(&id);
-        assert!(_result.is_err());
     }
 }
 
