@@ -1,5 +1,7 @@
 #![no_std]
+#![allow(clippy::too_many_arguments)]
 
+use soroban_sdk::{contract, contractimpl, contracttype, Address, BytesN, Env, Symbol};
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, Address, BytesN, Env, Symbol,
 };
@@ -68,6 +70,11 @@ impl DisciplrVault {
         failure_destination: Address,
     ) -> u32 {
         creator.require_auth();
+        if amount <= 0 {
+            panic!("amount must be positive");
+        }
+        // TODO: pull USDC from creator to this contract
+        // For now, just store vault metadata (storage key pattern would be used in full impl)
 
         // Validate that start_timestamp is strictly before end_timestamp.
         // A vault with start >= end has no valid time window and must be rejected.
@@ -86,6 +93,9 @@ impl DisciplrVault {
             failure_destination,
             status: VaultStatus::Active,
         };
+        let vault_id = 0u32; // placeholder; real impl would allocate id and persist
+        env.events()
+            .publish((Symbol::new(&env, "vault_created"), vault_id), vault);
         let vault_id: u32 = env
             .storage()
             .instance()
@@ -104,6 +114,12 @@ impl DisciplrVault {
     }
 
     /// Verifier (or authorized party) validates milestone completion.
+    pub fn validate_milestone(env: Env, vault_id: u32) -> bool {
+        // TODO: check vault exists, status is Active, caller is verifier, timestamp < end
+        // TODO: transfer USDC to success_destination, set status Completed
+        env.events()
+            .publish((Symbol::new(&env, "milestone_validated"), vault_id), ());
+        true
     pub fn validate_milestone(env: Env, vault_id: u32) -> Result<bool, Error> {
         let vault_key = DataKey::Vault(vault_id);
         let mut vault: ProductivityVault = env
@@ -941,5 +957,37 @@ mod tests {
         );
 
         assert_eq!(vault_id, 0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use soroban_sdk::{testutils::Address as _, Env};
+
+    #[test]
+    #[should_panic(expected = "amount must be positive")]
+    fn test_create_vault_zero_amount() {
+        let env = Env::default();
+        let contract_id = env.register(DisciplrVault, ());
+        let client = DisciplrVaultClient::new(&env, &contract_id);
+
+        let creator = Address::generate(&env);
+        let success_dest = Address::generate(&env);
+        let failure_dest = Address::generate(&env);
+        let milestone_hash = BytesN::from_array(&env, &[0u8; 32]);
+
+        env.mock_all_auths();
+
+        client.create_vault(
+            &creator,
+            &0,
+            &1000,
+            &2000,
+            &milestone_hash,
+            &None,
+            &success_dest,
+            &failure_dest,
+        );
     }
 }
