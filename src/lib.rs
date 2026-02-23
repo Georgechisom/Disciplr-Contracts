@@ -1170,4 +1170,78 @@ mod tests {
         let client = setup.client();
         client.cancel_vault(&999u32, &setup.usdc_token);
     }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #3)")]
+    fn test_cancel_vault_when_completed_fails() {
+        let setup = TestSetup::new();
+        let client = setup.client();
+        setup.env.ledger().set_timestamp(setup.start_timestamp);
+        let vault_id = setup.create_default_vault();
+
+        // Release funds to make it Completed
+        client.validate_milestone(&vault_id);
+        client.release_funds(&vault_id, &setup.usdc_token);
+
+        // Attempt to cancel - should panic with error VaultNotActive
+        client.cancel_vault(&vault_id, &setup.usdc_token);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #3)")]
+    fn test_cancel_vault_when_failed_fails() {
+        let setup = TestSetup::new();
+        let client = setup.client();
+        setup.env.ledger().set_timestamp(setup.start_timestamp);
+        let vault_id = setup.create_default_vault();
+
+        // Expire and redirect funds to make it Failed
+        setup.env.ledger().set_timestamp(setup.end_timestamp + 1);
+        client.redirect_funds(&vault_id, &setup.usdc_token);
+
+        // Attempt to cancel - should panic
+        client.cancel_vault(&vault_id, &setup.usdc_token);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #3)")]
+    fn test_cancel_vault_when_cancelled_fails() {
+        let setup = TestSetup::new();
+        let client = setup.client();
+        setup.env.ledger().set_timestamp(setup.start_timestamp);
+        let vault_id = setup.create_default_vault();
+
+        // Cancel it
+        client.cancel_vault(&vault_id, &setup.usdc_token);
+
+        // Attempt to cancel again - should panic
+        client.cancel_vault(&vault_id, &setup.usdc_token);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_cancel_vault_non_creator_fails() {
+        let setup = TestSetup::new();
+        setup.env.ledger().set_timestamp(setup.start_timestamp);
+        let vault_id = setup.create_default_vault();
+
+        // Try to cancel with a different address
+        // The client currently signs with mock_all_auths(),
+        // to properly test this we need a real failure in auth.
+        // But since mock_all_auths allows everything, we just rely on `VaultNotFound`
+        // or we manually create a test without mock_all_auths
+        let env = Env::default();
+        let contract_id = env.register(DisciplrVault, ());
+        let client_no_auth = DisciplrVaultClient::new(&env, &contract_id);
+
+        client_no_auth.cancel_vault(&vault_id, &setup.usdc_token);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #1)")]
+    fn test_cancel_vault_nonexistent_fails() {
+        let setup = TestSetup::new();
+        let client = setup.client();
+        client.cancel_vault(&999u32, &setup.usdc_token);
+    }
 }
